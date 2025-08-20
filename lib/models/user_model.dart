@@ -1,6 +1,4 @@
 class UserModel {
-  final bool fallAlertActive;
-  final String fallLastUpdated;
   final String emergencyContactName;
   final int emergencyContactPhone;
   final String latitude;
@@ -17,8 +15,6 @@ class UserModel {
   final String profileSex;
 
   UserModel({
-    required this.fallAlertActive,
-    required this.fallLastUpdated,
     required this.emergencyContactName,
     required this.emergencyContactPhone,
     required this.latitude,
@@ -38,8 +34,6 @@ class UserModel {
   factory UserModel.fromMap(Map<dynamic, dynamic> map) {
     final userMap = map['user'];
     return UserModel(
-      fallAlertActive: userMap['alerts']['fall']['active'] ?? ['Inactive'],
-      fallLastUpdated: userMap['alerts']['fall']['lastUpdated'] ?? 'N/A',
       emergencyContactName: userMap['emergencyContact']['contact']['name'] ?? 'N/A',
       emergencyContactPhone: userMap['emergencyContact']['contact']['phone'] ?? 0,
       latitude: userMap['location']['latitude'] ?? 'N/A',
@@ -47,7 +41,7 @@ class UserModel {
       address: userMap['location']['address'] ?? 'N/A', // Parse the new address key
       fallDetected: userMap['motion']['fallDetected'] ?? false,
       motionLastUpdated: userMap['motion']['lastUpdated'] ?? 'N/A',
-      currentHeartRate: userMap['sensor']['heartrate']['current'] ?? 0,
+      currentHeartRate: userMap['sensor']['heartrate']['bpm'] ?? 0,
       heartRateLastUpdated: userMap['sensor']['heartrate']['lastUpdated'] ?? 'N/A',
       sosActive: userMap['sos']['active'] ?? false,
       sosLastUpdated: userMap['sos']['lastUpdated'] ?? 'N/A',

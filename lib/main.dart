@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'services/firebase_service.dart'; // Import your FirebaseService
 import 'screen/auth_screen.dart';
 import 'screen/home_screen.dart';
 

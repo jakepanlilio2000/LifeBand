@@ -13,7 +13,6 @@
         "firebase_core",
         "firebase_database",
         "flutter",
-        "flutter_background_service",
         "flutter_bluetooth_serial",
         "flutter_local_notifications",
         "geocoding",
@@ -26,7 +25,7 @@
     },
     {
       "name": "flutter_lints",
-      "version": "5.0.0",
+      "version": "6.0.0",
       "dependencies": [
         "lints"
       ]
@@ -63,16 +62,6 @@
       "name": "cupertino_icons",
       "version": "1.0.8",
       "dependencies": []
-    },
-    {
-      "name": "flutter_background_service",
-      "version": "5.1.0",
-      "dependencies": [
-        "flutter",
-        "flutter_background_service_android",
-        "flutter_background_service_ios",
-        "flutter_background_service_platform_interface"
-      ]
     },
     {
       "name": "flutter_bluetooth_serial",
@@ -182,7 +171,7 @@
     },
     {
       "name": "lints",
-      "version": "5.1.1",
+      "version": "6.0.0",
       "dependencies": []
     },
     {
@@ -341,31 +330,6 @@
         "stream_channel",
         "string_scanner",
         "term_glyph"
-      ]
-    },
-    {
-      "name": "flutter_background_service_ios",
-      "version": "5.0.3",
-      "dependencies": [
-        "flutter",
-        "flutter_background_service_platform_interface"
-      ]
-    },
-    {
-      "name": "flutter_background_service_android",
-      "version": "6.3.1",
-      "dependencies": [
-        "flutter",
-        "flutter_background_service_platform_interface"
-      ]
-    },
-    {
-      "name": "flutter_background_service_platform_interface",
-      "version": "5.1.2",
-      "dependencies": [
-        "flutter",
-        "platform",
-        "plugin_platform_interface"
       ]
     },
     {
@@ -666,18 +630,6 @@
       "dependencies": []
     },
     {
-      "name": "plugin_platform_interface",
-      "version": "2.1.8",
-      "dependencies": [
-        "meta"
-      ]
-    },
-    {
-      "name": "platform",
-      "version": "3.1.6",
-      "dependencies": []
-    },
-    {
       "name": "fixnum",
       "version": "1.1.1",
       "dependencies": []
@@ -768,6 +720,13 @@
       ]
     },
     {
+      "name": "plugin_platform_interface",
+      "version": "2.1.8",
+      "dependencies": [
+        "meta"
+      ]
+    },
+    {
       "name": "xml",
       "version": "6.5.0",
       "dependencies": [
@@ -848,6 +807,11 @@
       "dependencies": [
         "collection"
       ]
+    },
+    {
+      "name": "platform",
+      "version": "3.1.6",
+      "dependencies": []
     },
     {
       "name": "petitparser",

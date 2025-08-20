@@ -1,57 +1,9 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import '../models/user_model.dart';
-import 'package:flutter/services.dart';
-
-@pragma('vm:entry-point')
-void firebaseListenerBackgroundHandler() async {
-  // It is crucial to initialize Firebase here for background tasks
-  // as the app might be in a killed state.
-  await Firebase.initializeApp();
-  final DatabaseReference _databaseReference = FirebaseDatabase.instance.ref();
-  final _localNotifications = FlutterLocalNotificationsPlugin();
-
-  // Initialize notifications for the background handler
-  const initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
-  const initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
-  await _localNotifications.initialize(initializationSettings);
-
-  _databaseReference.child('user/motion/fallDetected').onValue.listen((event) async {
-    final isFallDetected = event.snapshot.value as bool? ?? false;
-    if (isFallDetected) {
-      await _showFallNotification();
-    }
-  });
-}
-
-Future<void> _showFallNotification() async {
-  final _localNotifications = FlutterLocalNotificationsPlugin();
-  final _audioPlayer = AudioPlayer();
-
-  const androidPlatformChannelSpecifics = AndroidNotificationDetails(
-    'fall_alert_channel',
-    'Fall Alerts',
-    channelDescription: 'Notifications for detected falls.',
-    importance: Importance.max,
-    priority: Priority.high,
-    showWhen: false,
-    sound: RawResourceAndroidNotificationSound('alert_sound'), // Set custom sound here
-  );
-  const platformChannelSpecifics = NotificationDetails(android: androidPlatformChannelSpecifics);
-
-  await _localNotifications.show(
-    0,
-    'Fall Detected!',
-    'An emergency fall has been detected.',
-    platformChannelSpecifics,
-  );
-
-  await _audioPlayer.play(AssetSource('sounds/alert_sound.mp3'));
-}
 
 class FirebaseService {
   final DatabaseReference _databaseReference = FirebaseDatabase.instance.ref();
