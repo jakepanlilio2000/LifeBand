@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:firebase_database/firebase_database.dart';
 
 class FirebaseService {
@@ -6,7 +7,10 @@ class FirebaseService {
   Stream<Map<String, dynamic>?> getUserStream() {
     return _dbRef.child('user').onValue.map((event) {
       if (event.snapshot.value != null) {
-        return Map<String, dynamic>.from(event.snapshot.value as Map);
+        final value = event.snapshot.value;
+        if (value is Map) {
+          return Map<String, dynamic>.from(jsonDecode(jsonEncode(value)));
+        }
       }
       return null;
     });
@@ -26,5 +30,9 @@ class FirebaseService {
       'longitude': lng,
       'address': address,
     });
+  }
+
+  Future<void> updateUserAddress(String address) {
+    return _dbRef.child('user/location').update({'address': address});
   }
 }

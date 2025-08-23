@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/providers.dart';
-import '../screen/edit_emergency_contact_screen.dart';
-import '../screen/edit_profile_screen.dart';
+import 'package:lifeband/providers/providers.dart';
+import 'package:lifeband/screen/edit_emergency_contact_screen.dart';
+import 'package:lifeband/screen/edit_profile_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -38,20 +38,44 @@ class HomeScreen extends ConsumerWidget {
           if (user == null) {
             return const Center(child: Text('No user data found.'));
           }
+          final profile = user['profile'] as Map<String, dynamic>?;
+          final emergencyContact = user['emergencyContact']?['contact'] as Map<String, dynamic>?;
+          final heartrate = user['sensor']?['heartrate'] as Map<String, dynamic>?;
+          final location = user['location'] as Map<String, dynamic>?;
+          final motion = user['motion'] as Map<String, dynamic>?;
+          final sos = user['sos'] as Map<String, dynamic>?;
+
+
           return RefreshIndicator(
-            onRefresh: () => ref.refresh(locationServiceProvider).updateLocation(),
+            // --- MODIFY THE onRefresh ACTION ---
+            onRefresh: () async {
+              // Get existing coordinates from the user data
+              final lat = location?['latitude'];
+              final lng = location?['longitude'];
+
+              // Check if coordinates are valid numbers before proceeding
+              if (lat is num && lng is num) {
+                // Call the new service method with the existing coordinates
+                await ref.read(locationServiceProvider).updateAddressFromCoordinates(lat.toDouble(), lng.toDouble());
+              } else {
+                // Optional: Handle case where coordinates are not available
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Coordinates not available to refresh address.')),
+                );
+              }
+            },
             child: ListView(
               padding: const EdgeInsets.all(16.0),
               children: [
-                _buildProfileCard(user['profile']),
+                _buildProfileCard(profile),
                 const SizedBox(height: 16),
-                _buildEmergencyContactCard(user['emergencyContact']['contact']),
+                _buildEmergencyContactCard(emergencyContact),
                 const SizedBox(height: 16),
-                _buildVitalsCard(user['sensor']['heartrate']),
+                _buildVitalsCard(heartrate),
                 const SizedBox(height: 16),
-                _buildLocationCard(user['location']),
+                _buildLocationCard(location),
                 const SizedBox(height: 16),
-                _buildStatusCard(user['motion'], user['sos']),
+                _buildStatusCard(motion, sos),
               ],
             ),
           );
@@ -124,8 +148,13 @@ class HomeScreen extends ConsumerWidget {
 
   Widget _buildLocationCard(Map<String, dynamic>? location) {
     final address = location?['address'] ?? 'Fetching location...';
-    final lat = location?['latitude']?.toStringAsFixed(5) ?? 'N/A';
-    final lng = location?['longitude']?.toStringAsFixed(5) ?? 'N/A';
+
+    final latNum = double.tryParse(location?['latitude']?.toString() ?? '');
+    final lat = latNum != null ? latNum.toStringAsFixed(5) : 'N/A';
+
+    final lngNum = double.tryParse(location?['longitude']?.toString() ?? '');
+    final lng = lngNum != null ? lngNum.toStringAsFixed(5) : 'N/A';
+
     final isPressed = location?['isPressed'] ?? false;
 
     return Card(
