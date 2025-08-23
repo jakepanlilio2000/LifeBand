@@ -1,393 +1,189 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:geolocator/geolocator.dart';
-import '../services/firebase_service.dart';
-import '../models/user_model.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../screen/WifiConfigScreen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/providers.dart';
+import '../screen/edit_emergency_contact_screen.dart';
+import '../screen/edit_profile_screen.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  _HomeScreenState createState() => _HomeScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userData = ref.watch(userStreamProvider);
 
-class _HomeScreenState extends State<HomeScreen> {
-  final FirebaseService _firebaseService = FirebaseService();
-  StreamSubscription<Position>? _positionStreamSubscription;
-
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-
-  final TextEditingController _profileNameController = TextEditingController();
-  final TextEditingController _profileAgeController = TextEditingController();
-  final TextEditingController _profileSexController = TextEditingController();
-
-
-  Future<void> _logout() async {
-    await FirebaseAuth.instance.signOut();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _startLocationUpdates();
-    _firebaseService.startFallDetectionListener(); // Start listening for fall events
-  }
-
-  @override
-  void dispose() {
-    _positionStreamSubscription?.cancel();
-    _nameController.dispose();
-    _phoneController.dispose();
-    _profileNameController.dispose();
-    _profileAgeController.dispose();
-    _profileSexController.dispose();
-    super.dispose();
-  }
-
-  void _showEditProfileDialog(UserModel user) {
-    _profileNameController.text = user.profileName;
-    _profileAgeController.text = user.profileAge.toString();
-    _profileSexController.text = user.profileSex;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Edit Wristband User Profile'),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                TextField(
-                  controller: _profileNameController,
-                  decoration: const InputDecoration(labelText: 'Name'),
-                ),
-                TextField(
-                  controller: _profileAgeController,
-                  decoration: const InputDecoration(labelText: 'Age'),
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                ),
-                TextField(
-                  controller: _profileSexController,
-                  decoration: const InputDecoration(labelText: 'Sex'),
-                ),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: const Text('Save'),
-              onPressed: () {
-                final newName = _profileNameController.text.trim();
-                final newAge = int.tryParse(_profileAgeController.text.trim()) ?? 0;
-                final newSex = _profileSexController.text.trim();
-
-                if (newName.isNotEmpty && newAge > 0 && newSex.isNotEmpty) {
-                  _firebaseService.updateWristbandProfile(newName, newAge, newSex);
-                  Navigator.of(context).pop();
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please enter valid details.')),
-                  );
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _startLocationUpdates() async {
-    final hasPermission = await _firebaseService.getCurrentLocation();
-    if (hasPermission != null) {
-      _firebaseService.updateLocationInFirebase(hasPermission);
-      _positionStreamSubscription = _firebaseService.getLocationStream().listen((Position position) {
-        _firebaseService.updateLocationInFirebase(position);
-        print("Location updated: Lat ${position.latitude}, Lon ${position.longitude}");
-      }, onError: (e) {
-        print("Error in location stream: $e");
-      });
-    } else {
-      print("Could not get initial location or permission denied.");
-    }
-  }
-
-  void _showEditContactDialog(UserModel user) {
-    _nameController.text = user.emergencyContactName;
-    _phoneController.text = user.emergencyContactPhone.toString();
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Edit Emergency Contact'),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                TextField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Name'),
-                ),
-                TextField(
-                  controller: _phoneController,
-                  decoration: const InputDecoration(labelText: 'Phone Number'),
-                  keyboardType: TextInputType.phone,
-                  inputFormatters: <TextInputFormatter>[
-                    FilteringTextInputFormatter.digitsOnly,
-                  ],
-                ),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: const Text('Save'),
-              onPressed: () {
-                final newName = _nameController.text.trim();
-                final newPhone = int.tryParse(_phoneController.text.trim()) ?? 0;
-
-                if (newName.isNotEmpty && newPhone > 0) {
-                  _firebaseService.updateEmergencyContact(newName, newPhone);
-                  Navigator.of(context).pop();
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please enter valid details.')),
-                  );
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('LifeBand Dashboard'),
-        centerTitle: true,
-        backgroundColor: Colors.redAccent,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _logout,
-            tooltip: 'Logout',
+            icon: const Icon(Icons.edit),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+              );
+            },
           ),
+          IconButton(
+            icon: const Icon(Icons.contact_emergency),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const EditEmergencyContactScreen()),
+              );
+            },
+          )
         ],
       ),
-      body: StreamBuilder<UserModel>(
-        stream: _firebaseService.getUserData(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+      body: userData.when(
+        data: (user) {
+          if (user == null) {
+            return const Center(child: Text('No user data found.'));
           }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          if (!snapshot.hasData) {
-            return const Center(child: Text('No data available'));
-          }
-
-          final user = snapshot.data!;
-
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+          return RefreshIndicator(
+            onRefresh: () => ref.refresh(locationServiceProvider).updateLocation(),
+            child: ListView(
+              padding: const EdgeInsets.all(16.0),
               children: [
-                _buildEditableInfoCard(
-                  icon: Icons.person,
-                  title: 'Wristband User',
-                  value: user.profileName,
-                  lastUpdated: 'Age: ${user.profileAge}, Sex: ${user.profileSex}',
-                  iconColor: Colors.teal,
-                  onEditPressed: () => _showEditProfileDialog(user),
-                ),
+                _buildProfileCard(user['profile']),
                 const SizedBox(height: 16),
-                _buildInfoCard(
-                  icon: Icons.favorite,
-                  title: 'Heart Rate',
-                  value: '${user.currentHeartRate} BPM',
-                  lastUpdated: user.heartRateLastUpdated,
-                  iconColor: Colors.red,
-                ),
+                _buildEmergencyContactCard(user['emergencyContact']['contact']),
                 const SizedBox(height: 16),
-                _buildInfoCard(
-                  icon: Icons.warning,
-                  title: 'Fall Detection',
-                  value: user.fallDetected ? 'Fall Detected!' : 'Normal',
-                  lastUpdated: user.motionLastUpdated,
-                  iconColor: user.fallDetected ? Colors.orange : Colors.green,
-                ),
+                _buildVitalsCard(user['sensor']['heartrate']),
                 const SizedBox(height: 16),
-                _buildInfoCard(
-                  icon: Icons.location_on,
-                  title: 'Location',
-                  value: user.address,
-                  lastUpdated: 'Lat: ${user.latitude}, Lon: ${user.longitude}',
-                  iconColor: Colors.blue,
-                ),
+                _buildLocationCard(user['location']),
                 const SizedBox(height: 16),
-                _buildEditableInfoCard(
-                  icon: Icons.contact_phone,
-                  title: 'Emergency Contact',
-                  value: '${user.emergencyContactName} - ${user.emergencyContactPhone}',
-                  lastUpdated: "On file",
-                  iconColor: Colors.purple,
-                  onEditPressed: () => _showEditContactDialog(user),
-                ),
-                const SizedBox(height: 32),
-                ElevatedButton(
-                  onPressed: () {
-                    // Navigate to a new Bluetooth/Wi-Fi configuration screen
-                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => WifiConfigScreen()));
-                  },
-                  child: const Text('Configure Device Wi-Fi'),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () => _firebaseService.toggleSos(user.sosActive),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: user.sosActive ? Colors.grey : Colors.red,
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 5,
-                  ),
-                  child: Text(
-                    user.sosActive ? 'SOS ACTIVE' : 'SEND SOS',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-                Center(child: Text("Last SOS update: ${user.sosLastUpdated}", style: TextStyle(color: Colors.grey[600]))),
+                _buildStatusCard(user['motion'], user['sos']),
               ],
             ),
           );
         },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stack) => Center(child: Text('Error: $error')),
       ),
     );
   }
 
-  Widget _buildInfoCard({
-    required IconData icon,
-    required String title,
-    required String value,
-    required String lastUpdated,
-    required Color iconColor,
-  }) {
+  Widget _buildProfileCard(Map<String, dynamic>? profile) {
+    final name = profile?['name'] ?? 'N/A';
+    final age = profile?['age'] ?? 'N/A';
+    final sex = profile?['sex'] ?? 'N/A';
+
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ListTile(
+        leading: const Icon(Icons.person, size: 40),
+        title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text('Age: $age, Sex: $sex'),
+      ),
+    );
+  }
+
+  Widget _buildEmergencyContactCard(Map<String, dynamic>? contact) {
+    final name = contact?['name'] ?? 'N/A';
+    final phone = contact?['phone']?.toString() ?? 'N/A';
+
+    return Card(
+      elevation: 4,
+      child: ListTile(
+        leading: const Icon(Icons.contact_phone, size: 40),
+        title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text('Phone: $phone'),
+      ),
+    );
+  }
+
+  Widget _buildVitalsCard(Map<String, dynamic>? heartrate) {
+    final bpm = heartrate?['bpm'] ?? 'N/A';
+    final oxygen = heartrate?['oxygen'] ?? 'N/A';
+
+    return Card(
+      elevation: 4,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            Icon(icon, size: 40, color: iconColor),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    value,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Last Updated: $lastUpdated',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _buildVital('Heart Rate', '$bpm BPM', Icons.favorite, Colors.red),
+            _buildVital('Oxygen', '$oxygen %', Icons.local_fire_department, Colors.blue),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildEditableInfoCard({
-    required IconData icon,
-    required String title,
-    required String value,
-    required String lastUpdated,
-    required Color iconColor,
-    VoidCallback? onEditPressed,
-  }) {
+  Widget _buildVital(String label, String value, IconData icon, Color color) {
+    return Column(
+      children: [
+        Icon(icon, size: 40, color: color),
+        const SizedBox(height: 8),
+        Text(label, style: const TextStyle(fontSize: 16)),
+        Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+
+
+  Widget _buildLocationCard(Map<String, dynamic>? location) {
+    final address = location?['address'] ?? 'Fetching location...';
+    final lat = location?['latitude']?.toStringAsFixed(5) ?? 'N/A';
+    final lng = location?['longitude']?.toStringAsFixed(5) ?? 'N/A';
+    final isPressed = location?['isPressed'] ?? false;
+
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: isPressed ? Colors.yellow[200] : Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 40, color: iconColor),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    value,
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Last Updated: $lastUpdated',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                  ),
-                ],
-              ),
+            const Text('Location', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.location_on),
+                const SizedBox(width: 8),
+                Expanded(child: Text(address)),
+              ],
             ),
-            if (onEditPressed != null)
-              IconButton(
-                icon: const Icon(Icons.edit, color: Colors.grey),
-                onPressed: onEditPressed,
-              ),
+            const SizedBox(height: 8),
+            Text('Coordinates: ($lat, $lng)'),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStatusCard(Map<String, dynamic>? motion, Map<String, dynamic>? sos) {
+    final fallDetected = motion?['fallDetected'] ?? false;
+    final sosActive = sos?['active'] ?? false;
+
+    return Card(
+      elevation: 4,
+      color: (fallDetected || sosActive) ? Colors.red[300] : Colors.green[300],
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildStatusItem('Fall Detected', fallDetected),
+            _buildStatusItem('SOS Active', sosActive),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusItem(String label, bool isActive) {
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(fontSize: 16, color: Colors.white)),
+        const SizedBox(height: 8),
+        Icon(
+          isActive ? Icons.warning : Icons.check_circle,
+          color: Colors.white,
+          size: 40,
+        ),
+      ],
     );
   }
 }

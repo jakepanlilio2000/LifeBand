@@ -1,155 +1,30 @@
 import 'package:firebase_database/firebase_database.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:audioplayers/audioplayers.dart';
-import 'package:geocoding/geocoding.dart';
-import '../models/user_model.dart';
 
 class FirebaseService {
-  final DatabaseReference _databaseReference = FirebaseDatabase.instance.ref();
-  final _localNotifications = FlutterLocalNotificationsPlugin();
-  final _audioPlayer = AudioPlayer();
+  final DatabaseReference _dbRef = FirebaseDatabase.instance.ref();
 
-  FirebaseService() {
-    _initializeNotifications();
-  }
-
-  void _initializeNotifications() {
-    const initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
-    _localNotifications.initialize(initializationSettings);
-  }
-
-  Stream<UserModel> getUserData() {
-    return _databaseReference.onValue.map((event) {
-      final data = event.snapshot.value as Map<dynamic, dynamic>;
-      return UserModel.fromMap(data);
+  Stream<Map<String, dynamic>?> getUserStream() {
+    return _dbRef.child('user').onValue.map((event) {
+      if (event.snapshot.value != null) {
+        return Map<String, dynamic>.from(event.snapshot.value as Map);
+      }
+      return null;
     });
   }
 
-  Future<void> toggleSos(bool currentStatus) async {
-    try {
-      await _databaseReference.child('user/sos/active').set(!currentStatus);
-      await _databaseReference.child('user/sos/lastUpdated').set(DateTime.now().toIso8601String());
-    } catch (e) {
-      print("Error toggling SOS: $e");
-    }
+  Future<void> updateUserProfile(Map<String, dynamic> profileData) {
+    return _dbRef.child('user/profile').update(profileData);
   }
 
-  Future<Position?> getCurrentLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      print('Location services are disabled.');
-      return null;
-    }
-
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        print('Location permissions are denied');
-        return null;
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      print('Location permissions are permanently denied, we cannot request permissions.');
-      return null;
-    }
-
-    return await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+  Future<void> updateEmergencyContact(Map<String, dynamic> contactData) {
+    return _dbRef.child('user/emergencyContact/contact').update(contactData);
   }
 
-  Future<void> showFallNotification() async {
-    const androidPlatformChannelSpecifics = AndroidNotificationDetails(
-      'fall_alert_channel',
-      'Fall Alerts',
-      channelDescription: 'Notifications for detected falls.',
-      importance: Importance.max,
-      priority: Priority.high,
-      showWhen: false,
-    );
-    const platformChannelSpecifics = NotificationDetails(android: androidPlatformChannelSpecifics);
-
-    await _localNotifications.show(
-      0, // Notification ID
-      'Fall Detected!',
-      'An emergency fall has been detected.',
-      platformChannelSpecifics,
-    );
-
-    // Play a sound
-    _audioPlayer.play(AssetSource('sounds/alert_sound.mp3')); // Make sure to add alert_sound.mp3 to your assets
-  }
-  void startFallDetectionListener() {
-    _databaseReference.child('user/motion/fallDetected').onValue.listen((event) {
-      final isFallDetected = event.snapshot.value as bool? ?? false;
-      if (isFallDetected) {
-        showFallNotification();
-      }
+  Future<void> updateUserLocation(double lat, double lng, String address) {
+    return _dbRef.child('user/location').update({
+      'latitude': lat,
+      'longitude': lng,
+      'address': address,
     });
-  }
-  Future<void> updateWristbandProfile(String name, int age, String sex) async {
-    try {
-      await _databaseReference.child('user/profile').update({
-        'name': name,
-        'age': age,
-        'sex': sex,
-      });
-      print("Wristband user profile updated successfully.");
-    } catch (e) {
-      print("Error updating profile: $e");
-    }
-  }
-
-  // Modified method to update location with the address
-  Future<void> updateLocationInFirebase(Position position) async {
-    try {
-      // Perform reverse geocoding
-      String addressString = 'N/A';
-      try {
-        List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
-        if (placemarks.isNotEmpty) {
-          Placemark place = placemarks.first;
-          addressString = "${place.street}, ${place.locality}, ${place.administrativeArea} ${place.postalCode}, ${place.country}";
-        }
-      } catch (e) {
-        print("Could not find address from coordinates: $e");
-      }
-
-      // Update both coordinates and the address in Firebase
-      await _databaseReference.child('user/location').update({
-        'latitude': position.latitude.toString(),
-        'longitude': position.longitude.toString(),
-        'address': addressString,
-      });
-
-    } catch (e) {
-      print("Error updating location in Firebase: $e");
-    }
-  }
-
-  Stream<Position> getLocationStream() {
-    return Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10,
-      ),
-    );
-  }
-
-  Future<void> updateEmergencyContact(String name, int phone) async {
-    try {
-      await _databaseReference.child('user/emergencyContact/contact').update({
-        'name': name,
-        'phone': phone,
-      });
-      print("Emergency contact updated successfully.");
-    } catch (e) {
-      print("Error updating emergency contact: $e");
-    }
   }
 }
