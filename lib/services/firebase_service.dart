@@ -16,6 +16,20 @@ class FirebaseService {
     });
   }
 
+  // --- ADD THIS NEW METHOD ---
+  // Performs a single, one-time fetch of the current user data.
+  Future<Map<String, dynamic>?> getCurrentUser() async {
+    final snapshot = await _dbRef.child('user').get();
+    if (snapshot.exists && snapshot.value != null) {
+      final value = snapshot.value;
+      if (value is Map) {
+        // Use the same robust conversion to prevent type errors
+        return Map<String, dynamic>.from(jsonDecode(jsonEncode(value)));
+      }
+    }
+    return null;
+  }
+
   Future<void> updateUserProfile(Map<String, dynamic> profileData) {
     return _dbRef.child('user/profile').update(profileData);
   }

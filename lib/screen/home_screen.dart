@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifeband/providers/providers.dart';
 import 'package:lifeband/screen/edit_emergency_contact_screen.dart';
 import 'package:lifeband/screen/edit_profile_screen.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -47,20 +49,33 @@ class HomeScreen extends ConsumerWidget {
 
 
           return RefreshIndicator(
-            // --- MODIFY THE onRefresh ACTION ---
             onRefresh: () async {
-              // Get existing coordinates from the user data
-              final lat = location?['latitude'];
-              final lng = location?['longitude'];
+              try {
+                // 1. Fetch the LATEST user data directly from Firebase
+                final latestUserData = await ref.read(firebaseServiceProvider).getCurrentUser();
 
-              // Check if coordinates are valid numbers before proceeding
-              if (lat is num && lng is num) {
-                // Call the new service method with the existing coordinates
-                await ref.read(locationServiceProvider).updateAddressFromCoordinates(lat.toDouble(), lng.toDouble());
-              } else {
-                // Optional: Handle case where coordinates are not available
+                if (latestUserData != null) {
+                  // 2. Extract coordinates from the fresh data
+                  final location = latestUserData['location'] as Map<String, dynamic>?;
+                  final lat = location?['latitude'];
+                  final lng = location?['longitude'];
+
+                  // 3. Proceed with the update using the latest coordinates
+                  if (lat is num && lng is num) {
+                    await ref.read(locationServiceProvider).updateAddressFromCoordinates(lat.toDouble(), lng.toDouble());
+                  } else {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Coordinates not available to refresh address.')),
+                    );
+                  }
+                }
+              } catch (e) {
+                // --- ADD THIS CATCH BLOCK ---
+                // Handle the timeout error and show a message to the user
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Coordinates not available to refresh address.')),
+                  const SnackBar(content: Text('Network error: Could not update address.')),
                 );
               }
             },
@@ -70,6 +85,8 @@ class HomeScreen extends ConsumerWidget {
                 _buildProfileCard(profile),
                 const SizedBox(height: 16),
                 _buildEmergencyContactCard(emergencyContact),
+                const SizedBox(height: 16),
+                _buildMapCard(location),
                 const SizedBox(height: 16),
                 _buildVitalsCard(heartrate),
                 const SizedBox(height: 16),
@@ -82,6 +99,55 @@ class HomeScreen extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => Center(child: Text('Error: $error')),
+      ),
+    );
+  }
+
+  Widget _buildMapCard(Map<String, dynamic>? location) {
+    final lat = location?['latitude'];
+    final lng = location?['longitude'];
+
+    // Only build the map if we have valid coordinates
+    if (lat is num && lng is num) {
+      final userLocation = LatLng(lat.toDouble(), lng.toDouble());
+      return Card(
+        elevation: 4,
+        clipBehavior: Clip.antiAlias, // Ensures the map respects the card's rounded corners
+        child: SizedBox(
+          height: 250, // Give the map a fixed height
+          child: FlutterMap(
+            options: MapOptions(
+              initialCenter: userLocation,
+              initialZoom: 16.0,
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.OlfuLB.lifeband', // Replace with your app's package name
+              ),
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: userLocation,
+                    width: 80,
+                    height: 80,
+                    child: Icon(Icons.location_pin, size: 60, color: Colors.red.shade700),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Return a placeholder if no location is available
+    return Card(
+      elevation: 4,
+      child: Container(
+        height: 250,
+        alignment: Alignment.center,
+        child: const Text('Map data not available.'),
       ),
     );
   }
