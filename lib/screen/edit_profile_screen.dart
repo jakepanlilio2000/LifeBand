@@ -1,3 +1,5 @@
+// lib/screen/edit_profile_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifeband/providers/providers.dart';
@@ -39,6 +41,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         'age': int.tryParse(_ageController.text) ?? 0,
         'sex': _sexController.text,
       };
+
+      // MODIFIED: No longer needs a UID.
       ref.read(firebaseServiceProvider).updateUserProfile(updatedProfile).then((_) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile updated successfully!')),

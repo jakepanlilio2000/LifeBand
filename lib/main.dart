@@ -1,8 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifeband/firebase_options.dart';
-import 'package:lifeband/screen/home_screen.dart';
+import 'package:lifeband/screen/auth_wrapper.dart'; // Change to AuthWrapper
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,7 +24,8 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.red,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const HomeScreen(),
+      // The AuthWrapper will handle showing the login or home screen
+      home: const AuthWrapper(),
     );
   }
 }

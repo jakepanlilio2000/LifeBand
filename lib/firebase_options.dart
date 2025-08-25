@@ -53,11 +53,11 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAvDsZRZvPN_2oBd7idBz4A5MQ33Qy4Y5s',
-    appId: '1:90181172439:android:d85671ce59a0226a31c492',
-    messagingSenderId: '90181172439',
-    projectId: 'lifeband-9913c',
-    databaseURL: 'https://lifeband-9913c-default-rtdb.asia-southeast1.firebasedatabase.app',
-    storageBucket: 'lifeband-9913c.firebasestorage.app',
+    apiKey: 'AIzaSyBJwn4XOx1fH7-ivsFSfHfFPTv8a4CirKw',
+    appId: '1:258309549982:android:416b3de9206887b6dab08f',
+    messagingSenderId: '258309549982',
+    projectId: 'lifeband-e6815',
+    databaseURL: 'https://lifeband-e6815-default-rtdb.asia-southeast1.firebasedatabase.app',
+    storageBucket: 'lifeband-e6815.firebasestorage.app',
   );
 }

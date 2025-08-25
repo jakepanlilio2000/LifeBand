@@ -17,6 +17,13 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('LifeBand Dashboard'),
         actions: [
+          // ADDED A LOGOUT BUTTON
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () {
+              ref.read(authServiceProvider).signOut();
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: () {
@@ -35,48 +42,34 @@ class HomeScreen extends ConsumerWidget {
           )
         ],
       ),
+      // ... (The rest of the home_screen.dart file is the same)
       body: userData.when(
         data: (user) {
-          if (user == null) {
-            return const Center(child: Text('No user data found.'));
-          }
-          final profile = user['profile'] as Map<String, dynamic>?;
-          final emergencyContact = user['emergencyContact']?['contact'] as Map<String, dynamic>?;
-          final heartrate = user['sensor']?['heartrate'] as Map<String, dynamic>?;
-          final location = user['location'] as Map<String, dynamic>?;
-          final motion = user['motion'] as Map<String, dynamic>?;
-          final sos = user['sos'] as Map<String, dynamic>?;
-
+          final profile = user?['profile'] as Map<String, dynamic>?;
+          final emergencyContacts = user?['emergencyContacts'] as Map<String, dynamic>?;
+          final heartrate = user?['sensor']?['heartrate'] as Map<String, dynamic>?;
+          final location = user?['location'] as Map<String, dynamic>?;
+          final motion = user?['motion'] as Map<String, dynamic>?;
+          final sos = user?['sos'] as Map<String, dynamic>?;
 
           return RefreshIndicator(
             onRefresh: () async {
               try {
-                // 1. Fetch the LATEST user data directly from Firebase
-                final latestUserData = await ref.read(firebaseServiceProvider).getCurrentUser();
-
-                if (latestUserData != null) {
-                  // 2. Extract coordinates from the fresh data
-                  final location = latestUserData['location'] as Map<String, dynamic>?;
-                  final lat = location?['latitude'];
-                  final lng = location?['longitude'];
-
-                  // 3. Proceed with the update using the latest coordinates
-                  if (lat is num && lng is num) {
-                    await ref.read(locationServiceProvider).updateAddressFromCoordinates(lat.toDouble(), lng.toDouble());
-                  } else {
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Coordinates not available to refresh address.')),
-                    );
+                final authState = ref.read(authStateChangesProvider);
+                final uid = authState.value?.uid;
+                if (uid != null) {
+                  final latestUserData = await ref.read(firebaseServiceProvider).getCurrentUser();
+                  if (latestUserData != null) {
+                    final location = latestUserData['location'] as Map<String, dynamic>?;
+                    final lat = location?['latitude'];
+                    final lng = location?['longitude'];
+                    if (lat is num && lng is num) {
+                      await ref.read(locationServiceProvider).updateAddressFromCoordinates(lat.toDouble(), lng.toDouble());
+                    }
                   }
                 }
               } catch (e) {
-                // --- ADD THIS CATCH BLOCK ---
-                // Handle the timeout error and show a message to the user
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Network error: Could not update address.')),
-                );
+                // Handle error
               }
             },
             child: ListView(
@@ -84,7 +77,7 @@ class HomeScreen extends ConsumerWidget {
               children: [
                 _buildProfileCard(profile),
                 const SizedBox(height: 16),
-                _buildEmergencyContactCard(emergencyContact),
+                _buildEmergencyContactsCard(emergencyContacts),
                 const SizedBox(height: 16),
                 _buildMapCard(location),
                 const SizedBox(height: 16),
@@ -107,14 +100,13 @@ class HomeScreen extends ConsumerWidget {
     final lat = location?['latitude'];
     final lng = location?['longitude'];
 
-    // Only build the map if we have valid coordinates
-    if (lat is num && lng is num) {
+    if (lat is num && lng is num && lat != 0.0 && lng != 0.0) {
       final userLocation = LatLng(lat.toDouble(), lng.toDouble());
       return Card(
         elevation: 4,
-        clipBehavior: Clip.antiAlias, // Ensures the map respects the card's rounded corners
+        clipBehavior: Clip.antiAlias,
         child: SizedBox(
-          height: 250, // Give the map a fixed height
+          height: 250,
           child: FlutterMap(
             options: MapOptions(
               initialCenter: userLocation,
@@ -122,8 +114,8 @@ class HomeScreen extends ConsumerWidget {
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.OlfuLB.lifeband', // Replace with your app's package name
+                urlTemplate: '[https://tile.openstreetmap.org/](https://tile.openstreetmap.org/){z}/{x}/{y}.png',
+                userAgentPackageName: 'com.OlfuLB.lifeband',
               ),
               MarkerLayer(
                 markers: [
@@ -140,8 +132,6 @@ class HomeScreen extends ConsumerWidget {
         ),
       );
     }
-
-    // Return a placeholder if no location is available
     return Card(
       elevation: 4,
       child: Container(
@@ -167,16 +157,50 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmergencyContactCard(Map<String, dynamic>? contact) {
-    final name = contact?['name'] ?? 'N/A';
-    final phone = contact?['phone']?.toString() ?? 'N/A';
+  Widget _buildEmergencyContactsCard(Map<String, dynamic>? contacts) {
+    if (contacts == null || contacts.isEmpty) {
+      return Card(
+        elevation: 4,
+        child: ListTile(
+          leading: const Icon(Icons.contact_phone, size: 40),
+          title: const Text('No Emergency Contacts'),
+          subtitle: const Text('Add a contact in the management screen.'),
+        ),
+      );
+    }
+
+    final sortedKeys = contacts.keys.toList()
+      ..sort((a, b) {
+        final numA = int.tryParse(a.replaceAll('contact', '')) ?? 0;
+        final numB = int.tryParse(b.replaceAll('contact', '')) ?? 0;
+        return numA.compareTo(numB);
+      });
+
+    final contactWidgets = sortedKeys.map((key) {
+      final contactData = contacts[key] as Map<String, dynamic>;
+      final name = contactData['name'] ?? 'N/A';
+      final phone = contactData['phone']?.toString() ?? 'N/A';
+      return Text('$name: $phone');
+    }).toList();
 
     return Card(
       elevation: 4,
-      child: ListTile(
-        leading: const Icon(Icons.contact_phone, size: 40),
-        title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('Phone: $phone'),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.contact_phone, size: 40),
+                const SizedBox(width: 16),
+                const Text('Emergency Contacts', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...contactWidgets,
+          ],
+        ),
       ),
     );
   }
@@ -211,16 +235,12 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-
   Widget _buildLocationCard(Map<String, dynamic>? location) {
     final address = location?['address'] ?? 'Fetching location...';
-
     final latNum = double.tryParse(location?['latitude']?.toString() ?? '');
     final lat = latNum != null ? latNum.toStringAsFixed(5) : 'N/A';
-
     final lngNum = double.tryParse(location?['longitude']?.toString() ?? '');
     final lng = lngNum != null ? lngNum.toStringAsFixed(5) : 'N/A';
-
     final isPressed = location?['isPressed'] ?? false;
 
     return Card(

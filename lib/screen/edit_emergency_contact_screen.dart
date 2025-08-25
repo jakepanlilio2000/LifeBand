@@ -1,92 +1,120 @@
+// lib/screen/edit_emergency_contact_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lifeband/providers/providers.dart';
+import 'package:lifeband/screen/add_edit_contact_screen.dart';
 
-class EditEmergencyContactScreen extends ConsumerStatefulWidget {
+class EditEmergencyContactScreen extends ConsumerWidget {
   const EditEmergencyContactScreen({super.key});
 
   @override
-  ConsumerState<EditEmergencyContactScreen> createState() => _EditEmergencyContactScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userData = ref.watch(userStreamProvider);
 
-class _EditEmergencyContactScreenState extends ConsumerState<EditEmergencyContactScreen> {
-  final _formKey = GlobalKey<FormState>();
-  late TextEditingController _nameController;
-  late TextEditingController _phoneController;
+    final contactsData = userData.when<Map<String, dynamic>?>(
+      data: (user) => user?['emergencyContacts'] as Map<String, dynamic>?,
+      loading: () => null,
+      error: (e, s) => null,
+    );
 
-  @override
-  void initState() {
-    super.initState();
-    final user = ref.read(userStreamProvider).value;
-    _nameController = TextEditingController(text: user?['emergencyContact']?['contact']?['name'] ?? '');
-    _phoneController = TextEditingController(text: user?['emergencyContact']?['contact']?['phone']?.toString() ?? '');
-  }
+    final sortedContactKeys = contactsData?.keys.toList();
+    // A simple sort by key name, which might not be chronological.
+    sortedContactKeys?.sort();
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    super.dispose();
-  }
-
-  void _saveContact() {
-    if (_formKey.currentState!.validate()) {
-      final updatedContact = {
-        'name': _nameController.text,
-        'phone': int.tryParse(_phoneController.text) ?? 0,
-      };
-      ref.read(firebaseServiceProvider).updateEmergencyContact(updatedContact).then((_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Emergency contact updated successfully!')),
-        );
-        Navigator.of(context).pop();
-      }).catchError((error) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update contact: $error')),
-        );
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Emergency Contact')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Contact Name'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a name';
-                  }
-                  return null;
-                },
-              ),
-              TextFormField(
-                controller: _phoneController,
-                decoration: const InputDecoration(labelText: 'Contact Phone'),
-                keyboardType: TextInputType.phone,
-                validator: (value) {
-                  if (value == null || value.isEmpty || int.tryParse(value) == null) {
-                    return 'Please enter a valid phone number';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _saveContact,
-                child: const Text('Save'),
-              ),
-            ],
+      appBar: AppBar(
+        title: const Text('Manage Emergency Contacts'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const AddEditContactScreen(),
+                ),
+              );
+            },
           ),
-        ),
+        ],
+      ),
+      body: sortedContactKeys == null || sortedContactKeys.isEmpty
+          ? const Center(child: Text('No contacts found. Add one!'))
+          : ListView.builder(
+        itemCount: sortedContactKeys.length,
+        itemBuilder: (context, index) {
+          final key = sortedContactKeys[index];
+          final contact = contactsData![key] as Map<String, dynamic>;
+          final name = contact['name'] ?? 'No Name';
+          final phone = contact['phone']?.toString() ?? 'No Phone';
+
+          return ListTile(
+            title: Text(name),
+            subtitle: Text(phone),
+            leading: CircleAvatar(
+              child: Text((index + 1).toString()),
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.blue),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => AddEditContactScreen(
+                          contactKey: key,
+                          initialContact: contact,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.red),
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Delete Contact?'),
+                        content: Text('Are you sure you want to delete $name?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(true),
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    ) ??
+                        false;
+
+                    if (confirm) {
+                      // MODIFIED: No longer needs a UID.
+                      try {
+                        await ref.read(firebaseServiceProvider).removeEmergencyContact(key);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Contact removed')),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error: $e')),
+                          );
+                        }
+                      }
+                    }
+                  },
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
